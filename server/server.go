@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 )
+
+const CRLF = "\r\n"
 
 func main() {
 	listener, err := net.Listen("tcp", "0.0.0.0:4221")
@@ -22,22 +25,38 @@ func main() {
 			continue
 		}
 
-		go handleConnection(conn)
-
+		go handleConn(conn)
 	}
 }
 
-func handleConnection(conn net.Conn) {
+func handleConn(conn net.Conn) {
 	defer conn.Close()
 
 	fmt.Println("Connection accepted from: ", conn.RemoteAddr().String())
 
-	buff := make([]byte, 1248)
-	n, err := conn.Read(buff)
+	buf := make([]byte, 1024)
+	_, err := conn.Read(buf)
 	if err != nil {
-		fmt.Println("Error reading connection: ", err.Error())
+		fmt.Println("Error reading from connection: ", err.Error())
 		return
 	}
 
-	fmt.Println("Received: ", buff[:n])
+	req := string(buf)
+	lines := strings.Split(req, CRLF)
+	path := strings.Split(lines[0], " ")[1]
+
+	var res string
+	if path == "/" {
+		res = "HTTP/1.1 200 OK\r\n\r\n"
+	} else {
+		res = "HTTP/1.1 404 Not Found\r\n\r\n"
+	}
+
+	_, err = conn.Write([]byte(res))
+	if err != nil {
+		fmt.Println("Error writing to connection: ", err.Error())
+		return
+	}
+
+	fmt.Println("Response sent to: ", conn.RemoteAddr().String())
 }
