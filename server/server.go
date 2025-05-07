@@ -8,6 +8,13 @@ import (
 	"strings"
 )
 
+type Request struct {
+	Method  string
+	Path    string
+	Headers map[string]string
+	Body    string
+}
+
 func main() {
 	listener, err := net.Listen("tcp", "0.0.0.0:4221")
 	if err != nil {
@@ -40,21 +47,35 @@ func handleConn(conn net.Conn) {
 		return
 	}
 
-	req := string(buf)
-	lines := strings.Split(req, "\r\n")
-	path := strings.Split(lines[0], " ")[1]
+	req, err := parseRequest(string(buf))
+	if err != nil {
+		fmt.Println("Error parsing request: ", err.Error())
+		return
+	}
+
+	fmt.Println("Request Method: ", req.Method)
+	fmt.Println("Request Path: ", req.Path)
+	fmt.Println("Request Headers: ", req.Headers)
+	fmt.Println("Request Body: ", req.Body)
 
 	var res string
-	if path == "/" {
+	switch {
+	case req.Path == "/":
 		res = "HTTP/1.1 200 OK\r\n\r\n"
-	} else if strings.HasPrefix(path, "/echo/") {
-		message := strings.TrimPrefix(path, "/echo/")
+	case strings.HasPrefix(req.Path, "/echo/"):
+		message := strings.TrimPrefix(req.Path, "/echo/")
 		res = "HTTP/1.1 200 OK\r\n" +
 			"Content-Type: text/plain\r\n" +
 			"Content-Length: " + strconv.Itoa(len(message)) + "\r\n\r\n" +
 			message
-	} else {
-		res = "HTTP/1.1 404 Not Found\r\n\r\n"
+	case strings.HasPrefix(req.Path, "/user-agent"):
+		userAgent := req.Headers["User-Agent"]
+		res = "HTTP/1.1 200 OK\r\n" +
+			"Content-Type: text/plain\r\n" +
+			"Content-Length: " + strconv.Itoa(len(userAgent)) + "\r\n\r\n" +
+			userAgent
+	default:
+		res = "HTTP/1.1 404 Not Found\r\n"
 	}
 
 	_, err = conn.Write([]byte(res))
@@ -63,5 +84,47 @@ func handleConn(conn net.Conn) {
 		return
 	}
 
-	fmt.Println("Response sent to: ", conn.RemoteAddr().String())
+	fmt.Printf("Response sent to: %s\n", conn.RemoteAddr().String())
+}
+
+func parseRequest(req string) (*Request, error) {
+	const sep = "\r\n\r\n"
+
+	parts := strings.SplitN(req, sep, 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("Invalid HTTP request: missing header/body separator")
+	}
+	headerLines := strings.Split(parts[0], "\r\n")
+	body := parts[1]
+
+	// request‐line
+	reqLine := headerLines[0]
+	fields := strings.SplitN(reqLine, " ", 3)
+	if len(fields) < 2 {
+		return nil, fmt.Errorf("Malformed request line: %q", reqLine)
+	}
+
+	headers := parseHeaders(headerLines[1:])
+
+	return &Request{
+		Method:  fields[0],
+		Path:    fields[1],
+		Headers: headers,
+		Body:    body,
+	}, nil
+}
+
+func parseHeaders(headerLines []string) map[string]string {
+	headers := make(map[string]string)
+	for _, line := range headerLines {
+		if line == "" {
+			continue
+		}
+		kv := strings.SplitN(line, ": ", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		headers[kv[0]] = kv[1]
+	}
+	return headers
 }
