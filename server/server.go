@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 )
-
-const CRLF = "\r\n"
 
 func main() {
 	listener, err := net.Listen("tcp", "0.0.0.0:4221")
@@ -42,12 +41,18 @@ func handleConn(conn net.Conn) {
 	}
 
 	req := string(buf)
-	lines := strings.Split(req, CRLF)
+	lines := strings.Split(req, "\r\n")
 	path := strings.Split(lines[0], " ")[1]
 
 	var res string
 	if path == "/" {
 		res = "HTTP/1.1 200 OK\r\n\r\n"
+	} else if strings.HasPrefix(path, "/echo/") {
+		message := strings.TrimPrefix(path, "/echo/")
+		res = "HTTP/1.1 200 OK\r\n" +
+			"Content-Type: text/plain\r\n" +
+			"Content-Length: " + strconv.Itoa(len(message)) + "\r\n\r\n" +
+			message
 	} else {
 		res = "HTTP/1.1 404 Not Found\r\n\r\n"
 	}
