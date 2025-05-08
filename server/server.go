@@ -6,14 +6,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
-)
 
-type Request struct {
-	Method  string
-	Path    string
-	Headers map[string]string
-	Body    string
-}
+	"github.com/DylanPina/go-http/server/request"
+)
 
 func main() {
 	listener, err := net.Listen("tcp", "0.0.0.0:4221")
@@ -47,16 +42,11 @@ func handleConn(conn net.Conn) {
 		return
 	}
 
-	req, err := parseRequest(string(buf))
+	req, err := request.Parse(string(buf))
 	if err != nil {
 		fmt.Println("Error parsing request: ", err.Error())
 		return
 	}
-
-	fmt.Println("Request Method: ", req.Method)
-	fmt.Println("Request Path: ", req.Path)
-	fmt.Println("Request Headers: ", req.Headers)
-	fmt.Println("Request Body: ", req.Body)
 
 	var res string
 	switch {
@@ -85,46 +75,4 @@ func handleConn(conn net.Conn) {
 	}
 
 	fmt.Printf("Response sent to: %s\n", conn.RemoteAddr().String())
-}
-
-func parseRequest(req string) (*Request, error) {
-	const sep = "\r\n\r\n"
-
-	parts := strings.SplitN(req, sep, 2)
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("Invalid HTTP request: missing header/body separator")
-	}
-	headerLines := strings.Split(parts[0], "\r\n")
-	body := parts[1]
-
-	// request‐line
-	reqLine := headerLines[0]
-	fields := strings.SplitN(reqLine, " ", 3)
-	if len(fields) < 2 {
-		return nil, fmt.Errorf("Malformed request line: %q", reqLine)
-	}
-
-	headers := parseHeaders(headerLines[1:])
-
-	return &Request{
-		Method:  fields[0],
-		Path:    fields[1],
-		Headers: headers,
-		Body:    body,
-	}, nil
-}
-
-func parseHeaders(headerLines []string) map[string]string {
-	headers := make(map[string]string)
-	for _, line := range headerLines {
-		if line == "" {
-			continue
-		}
-		kv := strings.SplitN(line, ": ", 2)
-		if len(kv) != 2 {
-			continue
-		}
-		headers[kv[0]] = kv[1]
-	}
-	return headers
 }
