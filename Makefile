@@ -14,6 +14,12 @@ run: build
 	@echo "Running client..."
 	client/$(CLIENT)
 
+run-server:
+	server/$(SERVER)
+
+run-client:
+	client/$(CLIENT)
+
 clean:
 	rm -f server/$(SERVER) client/$(CLIENT)
 

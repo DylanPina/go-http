@@ -29,3 +29,6 @@ server/server
 
 # Client binary
 client/client
+
+# temporary files
+tmp/*

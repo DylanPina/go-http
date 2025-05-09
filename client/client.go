@@ -14,11 +14,11 @@ func main() {
 	}
 	defer conn.Close()
 
-	// _, err = conn.Write([]byte("Hello, server!"))
-	// if err != nil {
-	// 	fmt.Println("Error writing to server: ", err.Error())
-	// 	return
-	// }
+	_, err = conn.Write([]byte("Hello, server!"))
+	if err != nil {
+		fmt.Println("Error writing to server: ", err.Error())
+		return
+	}
 
 	buf := make([]byte, 1024)
 	n, err := conn.Read(buf)
