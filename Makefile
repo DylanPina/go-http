@@ -1,7 +1,7 @@
 SERVER_BIN=server
 CLIENT_BIN=client
-SERVER_SRC=cmd/server/server.go
-CLIENT_SRC=cmd/client/client.go
+SERVER_SRC=cmd/server/main.go
+CLIENT_SRC=cmd/client/main.go
 
 .PHONY: run clean all
 
