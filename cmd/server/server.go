@@ -6,6 +6,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/DylanPina/go-http/internal/server"
 )
 
 func main() {
@@ -40,29 +42,29 @@ func handleConn(conn net.Conn) {
 		return
 	}
 
-	req, err := Parse(string(buf))
+	req, err := server.Parse(string(buf))
 	if err != nil {
 		fmt.Println("Error parsing request: ", err.Error())
 		return
 	}
 
-	var res Response
+	var res server.Response
 	switch {
 	case req.Path == "/":
-		res = OkResponse("", map[string]string{})
+		res = server.OkResponse("", map[string]string{})
 	case strings.HasPrefix(req.Path, "/echo/"):
 		message := strings.TrimPrefix(req.Path, "/echo/")
-		res = OkResponse(message, map[string]string{
+		res = server.OkResponse(message, map[string]string{
 			"Content-Type":   "text/plain",
 			"Content-Length": strconv.Itoa(len(message)),
 		})
 	case strings.HasPrefix(req.Path, "/user-agent"):
-		res = OkResponse("", map[string]string{"User-Agent": req.Headers["User-Agent"]})
+		res = server.OkResponse("", map[string]string{"User-Agent": req.Headers["User-Agent"]})
 	case strings.HasPrefix(req.Path, "/files/"):
 		filePath := strings.TrimPrefix(req.Path, "/files/")
-		res = FileResponse(filePath)
+		res = server.FileResponse(filePath)
 	default:
-		res = NotFoundResponse()
+		res = server.NotFoundResponse()
 	}
 
 	_, err = conn.Write([]byte(res.String()))
