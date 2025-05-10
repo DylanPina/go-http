@@ -3,7 +3,7 @@ package server
 import (
 	"fmt"
 	"os"
-	"strconv"
+	"path/filepath"
 )
 
 type Response struct {
@@ -49,20 +49,50 @@ func OkResponse(body string, headers map[string]string) Response {
 	}
 }
 
-func FileResponse(filePath string) Response {
-	data, err := os.ReadFile(filePath)
+func CreatedResponse() Response {
+	return Response{
+		HTTPVersion:  1.1,
+		StatusCode:   201,
+		ReasonPhrase: "Created",
+		Headers:      map[string]string{},
+		Body:         "",
+	}
+}
+
+func InternalErrorResponse(body string) Response {
+	return Response{
+		HTTPVersion:  1.1,
+		StatusCode:   500,
+		ReasonPhrase: "Internal Server Error",
+		Headers:      map[string]string{},
+		Body:         body,
+	}
+}
+
+func GetFileResponse(filePath string) Response {
+	data, err := os.ReadFile(filepath.Join("tmp", filePath))
 	if err != nil {
 		return NotFoundResponse()
 	}
 
-	return Response{
-		HTTPVersion:  1.1,
-		StatusCode:   200,
-		ReasonPhrase: "OK",
-		Headers: map[string]string{
-			"Content-Type":   "application/octet-stream",
-			"Content-Length": strconv.Itoa(len(data)),
-		},
-		Body: string(data),
+	return OkResponse(string(data), map[string]string{})
+}
+
+func PostFileResponse(filePath string, data string) Response {
+	file, err := os.Create(filepath.Join("tmp", filePath))
+	if err != nil {
+		fmt.Println("Error creating file: ", err.Error())
+		return InternalErrorResponse("Error creating file.")
 	}
+	defer file.Close()
+
+	_, err = file.WriteString(data)
+	if err != nil {
+		fmt.Println("Error writing to file: ", err.Error())
+		return InternalErrorResponse("Error writing to file.")
+	}
+
+	fmt.Println("Successfully wrote to file.", filePath)
+
+	return CreatedResponse()
 }

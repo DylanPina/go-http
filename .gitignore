@@ -24,11 +24,5 @@ go.work.sum
 # env file
 .env
 
-# Server binary
-server
-
-# Client binary
-client
-
 # temporary files
 tmp/*
