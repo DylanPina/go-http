@@ -81,15 +81,11 @@ func createResponse(req http.Request) (res http.Response) {
 
 func writeResponse(conn net.Conn, res http.Response, req http.Request) {
 	if strings.Contains(req.Headers["Accept-Encoding"], "gzip") {
-		compressedBody, err := utils.GzipCompress([]byte(res.Body))
+		err := applyCompression(&res)
 		if err != nil {
-			fmt.Println("Error compressing response body: ", err.Error())
+			fmt.Println("Error applying compression: ", err.Error())
 			return
 		}
-		res.Headers["Content-Encoding"] = "gzip"
-		res.Headers["Content-Length"] = strconv.Itoa(len(compressedBody))
-		res.Body = string(compressedBody)
-		fmt.Println("Response body compressed with gzip")
 	}
 	_, err := conn.Write([]byte(res.String()))
 	if err != nil {
@@ -98,4 +94,19 @@ func writeResponse(conn net.Conn, res http.Response, req http.Request) {
 	}
 
 	fmt.Printf("Response sent to: %s\n", conn.RemoteAddr().String())
+}
+
+func applyCompression(res *http.Response) error {
+	compressedBody, err := utils.GzipCompress([]byte(res.Body))
+	if err != nil {
+		fmt.Println("Error compressing response body: ", err.Error())
+		return err
+	}
+
+	res.Headers["Content-Encoding"] = "gzip"
+	res.Headers["Content-Length"] = strconv.Itoa(len(compressedBody))
+	res.Body = string(compressedBody)
+	fmt.Println("Response body compressed with gzip")
+
+	return nil
 }

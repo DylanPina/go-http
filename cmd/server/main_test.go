@@ -178,8 +178,8 @@ func TestPostFileEndpoint(t *testing.T) {
 	}
 }
 
-// TestGzipCompress tests the GzipCompress function
-func TestGzipCompress(t *testing.T) {
+// TestGzipCompressUtils tests the GzipCompress utility functions
+func TestGzipCompressUtils(t *testing.T) {
 	data := []byte("Hello, World!")
 	compressedData, err := utils.GzipCompress(data)
 	if err != nil {
