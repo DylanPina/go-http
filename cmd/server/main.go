@@ -80,20 +80,38 @@ func createResponse(req http.Request) (res http.Response) {
 }
 
 func writeResponse(conn net.Conn, res http.Response, req http.Request) {
-	if strings.Contains(req.Headers["Accept-Encoding"], "gzip") {
+	encoding, err := parseEncoding(req.Headers["Accept-Encoding"])
+	if err != nil {
+		fmt.Printf("Unsupport encodings: %s", req.Headers["Accept-Encoding"])
+	}
+
+	if encoding == "gzip" {
 		err := applyCompression(&res)
 		if err != nil {
 			fmt.Println("Error applying compression: ", err.Error())
 			return
 		}
 	}
-	_, err := conn.Write([]byte(res.String()))
+
+	_, err = conn.Write([]byte(res.String()))
 	if err != nil {
 		fmt.Println("Error writing to connection: ", err.Error())
 		return
 	}
 
 	fmt.Printf("Response sent to: %s\n", conn.RemoteAddr().String())
+}
+
+func parseEncoding(encoding string) (string, error) {
+	encodings := strings.Split(encoding, ",")
+
+	for _, enc := range encodings {
+		if strings.TrimSpace(enc) == "gzip" {
+			return "gzip", nil
+		}
+	}
+
+	return "", fmt.Errorf("unsupported encoding: %s", encoding)
 }
 
 func applyCompression(res *http.Response) error {

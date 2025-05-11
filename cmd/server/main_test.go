@@ -231,3 +231,38 @@ func TestGzipCompressBody(t *testing.T) {
 		t.Errorf("Expected body to be '%s', instead got %s", string(compressedMessage), string(body))
 	}
 }
+
+// TestGzipMultipleEncoding tests whether the body gets compressed correctly when there are multiple encodings
+func TestGzipMultipleEncoding(t *testing.T) {
+	message := "helloworld"
+	headers := map[string]string{"Accept-Encoding": "invalid-encoding-1, invalid-encoding-2, gzip, invalid-encoding-3"}
+
+	resp, err := client.ConnectHTTP("GET", "/echo/"+message, headers, nil)
+	if err != nil {
+		t.Fatalf("Failed to make POST request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		t.Errorf("Expected status code 200, got %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response body: %v", err)
+	}
+
+	contentEncoding := resp.Header.Get("Content-Encoding")
+	if contentEncoding != "gzip" {
+		t.Errorf("Expected Content-Encoding to be 'gzip', got '%s'", contentEncoding)
+	}
+
+	compressedMessage, err := utils.GzipCompress([]byte(message))
+	if err != nil {
+		t.Fatalf("Failed to compress message: %v", err)
+	}
+
+	if string(body) != string(compressedMessage) {
+		t.Errorf("Expected body to be '%s', instead got %s", string(compressedMessage), string(body))
+	}
+}
