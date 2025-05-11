@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/DylanPina/go-http/internal/http"
+	"github.com/DylanPina/go-http/internal/utils"
 )
 
 func main() {
@@ -49,7 +50,7 @@ func handleConn(conn net.Conn) {
 	}
 
 	res := createResponse(*req)
-	writeResponse(conn, res)
+	writeResponse(conn, res, *req)
 }
 
 func createResponse(req http.Request) (res http.Response) {
@@ -78,11 +79,23 @@ func createResponse(req http.Request) (res http.Response) {
 	return res
 }
 
-func writeResponse(conn net.Conn, res http.Response) {
+func writeResponse(conn net.Conn, res http.Response, req http.Request) {
+	if strings.Contains(req.Headers["Accept-Encoding"], "gzip") {
+		compressedBody, err := utils.GzipCompress([]byte(res.Body))
+		if err != nil {
+			fmt.Println("Error compressing response body: ", err.Error())
+			return
+		}
+		res.Headers["Content-Encoding"] = "gzip"
+		res.Headers["Content-Length"] = strconv.Itoa(len(compressedBody))
+		res.Body = string(compressedBody)
+		fmt.Println("Response body compressed with gzip")
+	}
 	_, err := conn.Write([]byte(res.String()))
 	if err != nil {
 		fmt.Println("Error writing to connection: ", err.Error())
 		return
 	}
+
 	fmt.Printf("Response sent to: %s\n", conn.RemoteAddr().String())
 }

@@ -40,7 +40,7 @@ func TestGetUnknownURL(t *testing.T) {
 func TestEchoEndpoint(t *testing.T) {
 	resp, err := client.ConnectHTTP("GET", "/echo/helloworld", nil, nil)
 	if err != nil {
-		t.Fatalf("Failed to make POST request: %v", err)
+		t.Fatalf("Failed to make GET request: %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -175,5 +175,59 @@ func TestPostFileEndpoint(t *testing.T) {
 
 	if string(data) != testFileContent {
 		t.Errorf("Expected file content to be '%s', got '%s'", testFileContent, string(data))
+	}
+}
+
+// TestGzipCompress tests the GzipCompress function
+func TestGzipCompress(t *testing.T) {
+	data := []byte("Hello, World!")
+	compressedData, err := utils.GzipCompress(data)
+	if err != nil {
+		t.Fatalf("Failed to compress data: %v", err)
+	}
+
+	// Decompress the data to verify it was compressed correctly
+	decompressedData, err := utils.GzipDecompress(compressedData)
+	if err != nil {
+		t.Fatalf("Failed to decompress data: %v", err)
+	}
+
+	if string(decompressedData) != string(data) {
+		t.Errorf("Decompressed data should be '%s', got '%s'", string(data), string(decompressedData))
+	}
+}
+
+// TestGzipCompressBody tests whether the body gets compressed correctly when the accept-encoding header is set to gzip
+func TestGzipCompressBody(t *testing.T) {
+	message := "helloworld"
+	headers := map[string]string{"Accept-Encoding": "gzip"}
+
+	resp, err := client.ConnectHTTP("GET", "/echo/"+message, headers, nil)
+	if err != nil {
+		t.Fatalf("Failed to make POST request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		t.Errorf("Expected status code 200, got %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response body: %v", err)
+	}
+
+	contentEncoding := resp.Header.Get("Content-Encoding")
+	if contentEncoding != "gzip" {
+		t.Errorf("Expected Content-Encoding to be 'gzip', got '%s'", contentEncoding)
+	}
+
+	compressedMessage, err := utils.GzipCompress([]byte(message))
+	if err != nil {
+		t.Fatalf("Failed to compress message: %v", err)
+	}
+
+	if string(body) != string(compressedMessage) {
+		t.Errorf("Expected body to be '%s', instead got %s", string(compressedMessage), string(body))
 	}
 }
