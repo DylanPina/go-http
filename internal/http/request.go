@@ -1,4 +1,4 @@
-package server
+package http
 
 import (
 	"fmt"
@@ -16,10 +16,10 @@ func (r *Request) String() string {
 	return fmt.Sprintf("Method: %s\nPath: %s\nHeaders: %v\nBody: %s", r.Method, r.Path, r.Headers, r.Body)
 }
 
-func Parse(req string) (*Request, error) {
+func ParseRaw(raw string) (*Request, error) {
 	const sep = "\r\n\r\n"
 
-	parts := strings.SplitN(req, sep, 2)
+	parts := strings.SplitN(raw, sep, 2)
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("Invalid HTTP request: missing header/body separator")
 	}

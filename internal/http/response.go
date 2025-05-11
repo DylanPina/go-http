@@ -1,9 +1,10 @@
-package server
+package http
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 type Response struct {
@@ -78,7 +79,19 @@ func GetFileResponse(filePath string) Response {
 	return OkResponse(string(data), map[string]string{})
 }
 
-func PostFileResponse(filePath string, data string) Response {
+func PostFileResponse(filePath string, req Request) Response {
+	contentLength, exists := req.Headers["Content-Length"]
+	if !exists {
+		return InternalErrorResponse("Content-Length header is missing.")
+	}
+
+	contentLengthInt, err := strconv.Atoi(contentLength)
+	if err != nil {
+		return InternalErrorResponse("Invalid Content-Length header.")
+	}
+
+	data := req.Body[:contentLengthInt]
+
 	file, err := os.Create(filepath.Join("tmp", filePath))
 	if err != nil {
 		fmt.Println("Error creating file: ", err.Error())
@@ -91,8 +104,6 @@ func PostFileResponse(filePath string, data string) Response {
 		fmt.Println("Error writing to file: ", err.Error())
 		return InternalErrorResponse("Error writing to file.")
 	}
-
-	fmt.Println("Successfully wrote to file.", filePath)
 
 	return CreatedResponse()
 }

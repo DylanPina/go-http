@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/DylanPina/go-http/internal/server"
+	"github.com/DylanPina/go-http/internal/http"
 )
 
 func main() {
@@ -42,7 +42,7 @@ func handleConn(conn net.Conn) {
 		return
 	}
 
-	req, err := server.Parse(string(buf))
+	req, err := http.ParseRaw(string(buf))
 	if err != nil {
 		fmt.Println("Error parsing request: ", err.Error())
 		return
@@ -52,33 +52,33 @@ func handleConn(conn net.Conn) {
 	writeResponse(conn, res)
 }
 
-func createResponse(req server.Request) (res server.Response) {
+func createResponse(req http.Request) (res http.Response) {
 	switch {
 	case req.Path == "/":
-		res = server.OkResponse("", map[string]string{})
+		res = http.OkResponse("", map[string]string{})
 	case strings.HasPrefix(req.Path, "/echo/"):
 		message := strings.TrimPrefix(req.Path, "/echo/")
-		res = server.OkResponse(message, map[string]string{
+		res = http.OkResponse(message, map[string]string{
 			"Content-Type":   "text/plain",
 			"Content-Length": strconv.Itoa(len(message)),
 		})
 	case strings.HasPrefix(req.Path, "/user-agent"):
-		res = server.OkResponse("", map[string]string{"User-Agent": req.Headers["User-Agent"]})
+		res = http.OkResponse("", map[string]string{"User-Agent": req.Headers["User-Agent"]})
 	case strings.HasPrefix(req.Path, "/files/"):
 		filePath := strings.TrimPrefix(req.Path, "/files/")
 		if req.Method == "GET" {
-			res = server.GetFileResponse(filePath)
+			res = http.GetFileResponse(filePath)
 		} else if req.Method == "POST" {
-			res = server.PostFileResponse(filePath, req.Body)
+			res = http.PostFileResponse(filePath, req)
 		}
 	default:
-		res = server.NotFoundResponse()
+		res = http.NotFoundResponse()
 	}
 
 	return res
 }
 
-func writeResponse(conn net.Conn, res server.Response) {
+func writeResponse(conn net.Conn, res http.Response) {
 	_, err := conn.Write([]byte(res.String()))
 	if err != nil {
 		fmt.Println("Error writing to connection: ", err.Error())
