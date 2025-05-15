@@ -1,58 +1,88 @@
 package http
 
 import (
+	"bufio"
 	"fmt"
+	"io"
+	"net"
+	"os"
+	"strconv"
 	"strings"
 )
 
 type Request struct {
-	Method  string
-	Path    string
-	Headers map[string]string
-	Body    string
+	Method   string
+	Path     string
+	Protocol string
+	Headers  map[string]string
+	Body     string
 }
 
 func (r *Request) String() string {
-	return fmt.Sprintf("Method: %s\nPath: %s\nHeaders: %v\nBody: %s", r.Method, r.Path, r.Headers, r.Body)
+	return fmt.Sprintf("Method: %s\nPath: %s\nProtocol: %s\nHeaders: %v\nBody: %s", r.Method, r.Path, r.Headers, r.Body)
 }
 
-func ParseRaw(raw string) (*Request, error) {
-	const sep = "\r\n\r\n"
+func ReadConnection(conn net.Conn) (*Request, error) {
+	reader := bufio.NewReader(conn)
 
-	parts := strings.SplitN(raw, sep, 2)
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("Invalid HTTP request: missing header/body separator")
+	requestLine, err := reader.ReadString('\n')
+	if err == io.EOF {
+		return nil, err
 	}
-	headerLines := strings.Split(parts[0], "\r\n")
-	body := parts[1]
-
-	reqLine := headerLines[0]
-	fields := strings.SplitN(reqLine, " ", 3)
-	if len(fields) < 2 {
-		return nil, fmt.Errorf("Malformed request line: %q", reqLine)
+	if err != nil {
+		fmt.Println("Error reading request line: ", err.Error())
+		os.Exit(1)
 	}
 
-	headers := parseHeaders(headerLines[1:])
+	requestLineArr := strings.Split(requestLine, " ")
+	if len(requestLineArr) != 3 {
+		fmt.Println("Invalid request line: ", requestLine)
+		os.Exit(1)
+	}
+
+	headers := make(map[string]string)
+
+	for {
+		line, err := reader.ReadString('\n')
+		line = strings.TrimSpace(line)
+
+		if err != nil {
+			fmt.Println("Error reading headers: ", err.Error())
+			os.Exit(1)
+		}
+
+		if line == "\n\r" || line == "" {
+			break
+		}
+
+		colonIndex := strings.Index(line, ":")
+		if colonIndex == -1 {
+			continue
+		}
+
+		key := line[:colonIndex]
+		value := line[colonIndex+1:]
+		headers[key] = strings.TrimSpace(value)
+	}
+
+	var body string
+
+	if value, ok := headers["Content-Length"]; ok {
+		bufSize, err := strconv.Atoi(value)
+		if err != nil {
+			fmt.Println("Error converting Content-Length: ", err.Error())
+			os.Exit(1)
+		}
+		buf := make([]byte, bufSize)
+		reader.Read(buf)
+		body = string(buf)
+	}
 
 	return &Request{
-		Method:  fields[0],
-		Path:    fields[1],
-		Headers: headers,
-		Body:    body,
+		Method:   requestLineArr[0],
+		Path:     requestLineArr[1],
+		Protocol: requestLineArr[2],
+		Headers:  headers,
+		Body:     body,
 	}, nil
-}
-
-func parseHeaders(headerLines []string) map[string]string {
-	headers := make(map[string]string)
-	for _, line := range headerLines {
-		if line == "" {
-			continue
-		}
-		kv := strings.SplitN(line, ": ", 2)
-		if len(kv) != 2 {
-			continue
-		}
-		headers[kv[0]] = kv[1]
-	}
-	return headers
 }
