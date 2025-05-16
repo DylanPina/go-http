@@ -15,12 +15,7 @@ test: build
 	@echo "Starting server..."
 	./$(SERVER_BIN) &
 
-	@SERVER_PID=$$
-
 	go test -v $(SERVER_TEST_SRC)
-
-	@echo "Stopping server..."
-	kill $$SERVER_PID || true
 
 	@echo "Cleaning up..."
 	rm -f $(SERVER_BIN)

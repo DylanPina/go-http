@@ -32,19 +32,22 @@ func main() {
 }
 
 func handleConn(conn net.Conn) {
-	fmt.Println("Connection accepted from: ", conn.RemoteAddr().String())
-
-	req, err := http.ReadConnection(conn)
-	writeResponse(conn, http.OkResponse("", map[string]string{}), *req)
-
+	defer conn.Close()
 	for {
-		req, err = http.ReadConnection(conn)
+		req, err := http.ReadConnection(conn)
 		if err != nil {
+			fmt.Println("Closing connection:", conn.RemoteAddr(), "->", err)
 			return
 		}
 
 		res := createResponse(*req)
 		writeResponse(conn, res, *req)
+
+		// if client asked us to close, we’ll return (defer will close)
+		if val, ok := req.Headers["Connection"]; ok && val == "close" {
+			fmt.Println("Client requested close:", conn.RemoteAddr())
+			return
+		}
 	}
 }
 
